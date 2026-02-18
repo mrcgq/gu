@@ -1,6 +1,6 @@
 <!-- =============================================================================
      文件: MainWindow.xaml
-     描述: 主窗口界面 - Material Design 风格 (完整版，含端口检测和权限显示)
+     描述: 主窗口界面 - Material Design 风格 (移除 LiveCharts 依赖)
 ============================================================================= -->
 <Window x:Class="PhantomGUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -8,8 +8,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         xmlns:vm="clr-namespace:PhantomGUI.ViewModels"
+        xmlns:controls="clr-namespace:PhantomGUI.Controls"
         mc:Ignorable="d"
         Title="Phantom VPN - Ultimate Edition"
         Height="700" Width="1100"
@@ -106,11 +106,6 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                             <materialDesign:Chip Content="{Binding TransportMode}" 
                                                                   FontSize="10" Padding="4,2"/>
-                                            <materialDesign:Chip Content="{Binding TLSFingerprint}" 
-                                                                  FontSize="10" Padding="4,2"
-                                                                  Margin="4,0,0,0"
-                                                                  Visibility="{Binding TLSEnabled, 
-                                                                      Converter={StaticResource BoolToVisibility}}"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </DataTemplate>
@@ -171,20 +166,6 @@
                                     <Run Text=" | 本地端口: "/>
                                     <Run Text="{Binding SelectedServer.LocalSocksPort, FallbackValue='-'}"/>
                                 </TextBlock>
-                                
-                                <!-- 权限提示 -->
-                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                                            Visibility="{Binding RequiresAdminForSelectedMode, 
-                                                Converter={StaticResource BoolToVisibility}}">
-                                    <materialDesign:PackIcon Kind="ShieldAlert" 
-                                                              Foreground="#FF9800"
-                                                              VerticalAlignment="Center"/>
-                                    <TextBlock Text="此模式需要管理员权限" 
-                                               Foreground="#FF9800"
-                                               FontSize="12"
-                                               Margin="4,0,0,0"
-                                               VerticalAlignment="Center"/>
-                                </StackPanel>
                             </StackPanel>
 
                             <!-- 连接按钮 -->
@@ -355,7 +336,7 @@
                 </Grid>
             </Grid>
 
-            <!-- ====== 底部状态栏 (完整版，含端口检测和权限显示) ====== -->
+            <!-- ====== 底部状态栏 ====== -->
             <materialDesign:ColorZone Grid.Row="2" Mode="PrimaryDark" Padding="8,4">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -389,18 +370,6 @@
                                    VerticalAlignment="Center"
                                    FontSize="11"
                                    Opacity="0.8"/>
-                        
-                        <!-- 提权按钮 (非管理员时显示) -->
-                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                Visibility="{Binding IsAdmin, 
-                                    Converter={StaticResource InverseBoolToVisibility}}"
-                                Command="{Binding RestartAsAdminCommand}"
-                                ToolTip="以管理员身份重启"
-                                Foreground="#FFC107"
-                                Margin="4,0,0,0"
-                                Width="24" Height="24">
-                            <materialDesign:PackIcon Kind="ArrowUpBold" Width="14" Height="14"/>
-                        </Button>
                     </StackPanel>
 
                     <!-- 分隔线 -->
@@ -430,9 +399,7 @@
                         <TextBlock Text="{Binding PortInfo}"
                                    Opacity="0.7" 
                                    VerticalAlignment="Center"
-                                   FontSize="11"
-                                   Visibility="{Binding PortInfo, 
-                                       Converter={StaticResource StringToVisibilityConverter}}"/>
+                                   FontSize="11"/>
                     </StackPanel>
 
                     <!-- 分隔线 -->
@@ -446,15 +413,6 @@
 
                     <!-- 工具按钮 -->
                     <StackPanel Grid.Column="5" Orientation="Horizontal">
-                        <!-- 检测端口 -->
-                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                Command="{Binding CheckPortsCommand}"
-                                ToolTip="检测端口占用"
-                                Foreground="White"
-                                Width="32" Height="32">
-                            <materialDesign:PackIcon Kind="LanCheck" Width="18" Height="18"/>
-                        </Button>
-                        
                         <!-- 刷新时间同步 -->
                         <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
                                 Command="{Binding CheckTimeSyncCommand}"
@@ -477,12 +435,3 @@
         </Grid>
     </materialDesign:DialogHost>
 </Window>
-									
-									
-									
-									
-									
-									
-									
-									
-									
