@@ -3,25 +3,23 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <!-- 移除图标引用，避免文件不存在错误 -->
-    <!-- <ApplicationIcon>Resources\Icons\phantom.ico</ApplicationIcon> -->
+    <ApplicationIcon>Resources\Icons\px_icon.ico</ApplicationIcon>
     <AssemblyName>PhantomGUI</AssemblyName>
     <Version>4.1.0</Version>
     <Authors>Phantom Team</Authors>
     <Description>Phantom VPN Client - Ultimate Edition</Description>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    
-    <!-- 忽略 LiveCharts 兼容性警告 -->
-    <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
   
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="15.1.2" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="1.1.0" />
-    <!-- 使用 LiveCharts2 替代旧版 LiveCharts (支持 .NET 8) -->
-    <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.0-rc2" />
     <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Resource Include="Resources\Icons\*.ico" />
   </ItemGroup>
 </Project>
