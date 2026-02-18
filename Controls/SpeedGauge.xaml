@@ -11,8 +11,7 @@
         <lvc:CartesianChart Series="{Binding Series}"
                             XAxes="{Binding XAxes}"
                             YAxes="{Binding YAxes}"
-                            TooltipPosition="Hidden"
-                            AnimationsSpeed="00:00:00.100">
+                            TooltipPosition="Hidden">
         </lvc:CartesianChart>
     </Grid>
 </UserControl>
