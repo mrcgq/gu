@@ -5,6 +5,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Controls;
+using System.Windows.Input;
 using PhantomGUI.Models;
 using PhantomGUI.Services;
 
@@ -16,6 +17,8 @@ public partial class ServerEditDialog : UserControl, INotifyPropertyChanged
     
     public event PropertyChangedEventHandler? PropertyChanged;
     
+    public ICommand GeneratePSKCommand { get; }
+    
     public ServerEditDialog(ServerProfile profile)
     {
         InitializeComponent();
@@ -23,8 +26,10 @@ public partial class ServerEditDialog : UserControl, INotifyPropertyChanged
         
         _profile = profile;
         
+        GeneratePSKCommand = new RelayCommand(ExecuteGeneratePSK);
+        
         // 复制属性
-        Name = profile.Name;
+        ServerName = profile.Name;
         ServerAddress = profile.ServerAddress;
         ServerPort = profile.ServerPort;
         PSK = profile.PSK;
@@ -40,12 +45,12 @@ public partial class ServerEditDialog : UserControl, INotifyPropertyChanged
         TimeWindow = profile.TimeWindow;
     }
     
-    // 属性绑定
-    private string _name = "";
-    public string Name
+    // 属性绑定 - 修改为 ServerName 避免与基类冲突
+    private string _serverName = "";
+    public string ServerName
     {
-        get => _name;
-        set { _name = value; OnPropertyChanged(); }
+        get => _serverName;
+        set { _serverName = value; OnPropertyChanged(); }
     }
     
     private string _serverAddress = "";
@@ -148,7 +153,7 @@ public partial class ServerEditDialog : UserControl, INotifyPropertyChanged
     public string UserId => ConfigurationService.CalculateUserId(PSK);
     
     // 命令：生成 PSK
-    public void GeneratePSKCommand()
+    private void ExecuteGeneratePSK()
     {
         PSK = ConfigurationService.GeneratePSK();
     }
@@ -156,7 +161,7 @@ public partial class ServerEditDialog : UserControl, INotifyPropertyChanged
     // 保存到 Profile
     public void SaveToProfile()
     {
-        _profile.Name = Name;
+        _profile.Name = ServerName;
         _profile.ServerAddress = ServerAddress;
         _profile.ServerPort = ServerPort;
         _profile.PSK = PSK;
@@ -178,6 +183,24 @@ public partial class ServerEditDialog : UserControl, INotifyPropertyChanged
     }
 }
 
+// 简单的 RelayCommand 实现
+public class RelayCommand : ICommand
+{
+    private readonly Action _execute;
+    private readonly Func<bool>? _canExecute;
 
+    public RelayCommand(Action execute, Func<bool>? canExecute = null)
+    {
+        _execute = execute;
+        _canExecute = canExecute;
+    }
 
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
 
+    public bool CanExecute(object? parameter) => _canExecute?.Invoke() ?? true;
+    public void Execute(object? parameter) => _execute();
+}
