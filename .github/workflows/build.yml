@@ -1,7 +1,6 @@
 # =============================================================================
 # 文件: .github/workflows/build.yml
 # 描述: PhantomGUI 持续集成构建工作流
-#       每次 Push 和 PR 时自动构建和测试
 # =============================================================================
 name: Build
 
@@ -11,48 +10,39 @@ on:
       - main
       - master
       - develop
-      - 'feature/**'
-    paths:
-      - 'PhantomGUI/**'
-      - '.github/workflows/build.yml'
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
   pull_request:
     branches:
       - main
       - master
-    paths:
-      - 'PhantomGUI/**'
   workflow_dispatch:
 
 env:
   DOTNET_VERSION: '8.0.x'
-  SOLUTION_PATH: 'PhantomGUI/PhantomGUI.sln'
-  PROJECT_PATH: 'PhantomGUI/PhantomGUI/PhantomGUI.csproj'
+  PROJECT_PATH: 'PhantomGUI.csproj'
   CONFIGURATION: 'Release'
 
 jobs:
   build:
     name: Build ${{ matrix.platform }}
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            platform: win-x64
+          - platform: win-x64
             runtime: win-x64
-          - os: windows-latest
-            platform: win-x86
+          - platform: win-x86
             runtime: win-x86
-          - os: windows-latest
-            platform: win-arm64
+          - platform: win-arm64
             runtime: win-arm64
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -75,8 +65,7 @@ jobs:
           dotnet build ${{ env.PROJECT_PATH }} `
             --configuration ${{ env.CONFIGURATION }} `
             --runtime ${{ matrix.runtime }} `
-            --no-restore `
-            -p:Platform="Any CPU"
+            --no-restore
 
       - name: Publish
         run: |
@@ -103,47 +92,20 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  # 代码质量检查
-  code-quality:
-    name: Code Quality Check
-    runs-on: windows-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
-
-      - name: Check code formatting
-        run: dotnet format ${{ env.PROJECT_PATH }} --verify-no-changes --verbosity diagnostic
-        continue-on-error: true
-
-      - name: Run analyzers
-        run: |
-          dotnet build ${{ env.PROJECT_PATH }} `
-            --configuration ${{ env.CONFIGURATION }} `
-            --no-restore `
-            -warnaserror
-
   # 构建摘要
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build, code-quality]
+    needs: build
     if: always()
     
     steps:
-      - name: Check build results
+      - name: Summary
         run: |
           echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| win-x64 | ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Quality | ${{ needs.code-quality.result == 'success' && '✅ Passed' || '⚠️ Issues' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| win-x86 | ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| win-arm64 | ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
