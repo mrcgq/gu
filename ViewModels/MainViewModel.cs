@@ -1,7 +1,6 @@
 // =============================================================================
 // 文件: ViewModels/MainViewModel.cs
-// 描述: 主窗口视图模型 - MVVM 模式
-//       修复：增加端口检测和权限检查的 UI 反馈
+// 描述: 主窗口视图模型 - MVVM 模式 (修复版)
 // =============================================================================
 using System;
 using System.Collections.ObjectModel;
@@ -9,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PhantomGUI.Models;
@@ -29,8 +29,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string _statusText = "未连接";
     
+    // 使用 Brush 而不是 Color 字符串
     [ObservableProperty]
-    private string _statusColor = "#808080";
+    private Brush _statusBrush = new SolidColorBrush(Color.FromRgb(128, 128, 128));
+    
+    // 按钮可见性控制
+    public bool CanConnect => ConnectionState == ConnectionState.Disconnected || 
+                              ConnectionState == ConnectionState.Error;
+    public bool CanDisconnect => ConnectionState == ConnectionState.Connected || 
+                                 ConnectionState == ConnectionState.Connecting;
     
     // ====== 权限状态 ======
     [ObservableProperty]
@@ -60,7 +67,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _rtt = "-- ms";
     
     [ObservableProperty]
-    private string _currentMode = "unknown";
+    private string _currentMode = "N/A";
     
     [ObservableProperty]
     private int _activeConnections;
@@ -86,10 +93,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public ICommand AddServerCommand { get; }
     public ICommand EditServerCommand { get; }
     public ICommand DeleteServerCommand { get; }
-    public ICommand GeneratePSKCommand { get; }
     public ICommand CheckTimeSyncCommand { get; }
-    public ICommand CheckPortsCommand { get; }
-    public ICommand RestartAsAdminCommand { get; }
     public ICommand ClearLogsCommand { get; }
     
     public MainViewModel()
@@ -103,15 +107,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         PrivilegeLevel = AdminPrivilege.GetCurrentPrivilegeLevel();
         
         // 初始化命令
-        ConnectCommand = new AsyncRelayCommand(ConnectAsync, CanConnect);
-        DisconnectCommand = new AsyncRelayCommand(DisconnectAsync, CanDisconnect);
+        ConnectCommand = new AsyncRelayCommand(ConnectAsync);
+        DisconnectCommand = new AsyncRelayCommand(DisconnectAsync);
         AddServerCommand = new RelayCommand(AddServer);
-        EditServerCommand = new RelayCommand(EditServer, () => SelectedServer != null);
-        DeleteServerCommand = new RelayCommand(DeleteServer, () => SelectedServer != null);
-        GeneratePSKCommand = new RelayCommand<Action<string>>(GeneratePSK);
+        EditServerCommand = new RelayCommand(EditServer);
+        DeleteServerCommand = new RelayCommand(DeleteServer);
         CheckTimeSyncCommand = new AsyncRelayCommand(CheckTimeSyncAsync);
-        CheckPortsCommand = new RelayCommand(CheckPorts);
-        RestartAsAdminCommand = new RelayCommand(RestartAsAdmin);
         ClearLogsCommand = new RelayCommand(() => Logs.Clear());
         
         // 事件订阅
@@ -126,24 +127,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // 启动时检查
         _ = Task.Run(async () =>
         {
+            await Task.Delay(500);
             await CheckTimeSyncAsync();
         });
-        
-        // 处理自动连接
-        if (App.StartupArgs.AutoConnect && Servers.Count > 0)
-        {
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(500); // 等待 UI 加载
-                await Application.Current.Dispatcher.InvokeAsync(async () =>
-                {
-                    if (SelectedServer != null)
-                    {
-                        await ConnectAsync();
-                    }
-                });
-            });
-        }
     }
     
     private void LoadServers()
@@ -161,60 +147,36 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 s.Id == _configService.Settings.SelectedProfileId);
         }
         
-        // 如果命令行指定了 profile
-        if (!string.IsNullOrEmpty(App.StartupArgs.ProfileId))
-        {
-            SelectedServer = Servers.FirstOrDefault(s => 
-                s.Id == App.StartupArgs.ProfileId || 
-                s.Name == App.StartupArgs.ProfileId);
-        }
-        
         // 默认选择第一个
         SelectedServer ??= Servers.FirstOrDefault();
     }
     
-    private bool CanConnect() => 
-        ConnectionState == ConnectionState.Disconnected && 
-        SelectedServer != null;
-    
-    private bool CanDisconnect() => 
-        ConnectionState == ConnectionState.Connected ||
-        ConnectionState == ConnectionState.Connecting;
-    
     /// <summary>
-    /// 连接 (带预检查)
+    /// 连接
     /// </summary>
     private async Task ConnectAsync()
     {
-        if (SelectedServer == null) return;
+        if (SelectedServer == null)
+        {
+            AddLog("请先选择一个服务器");
+            return;
+        }
         
         AddLog($"准备连接到 {SelectedServer.Name}...");
         
-        // 检查是否需要特殊权限
-        if (AdminPrivilege.RequiresAdmin(SelectedServer.TransportMode) && !IsAdmin)
-        {
-            AddLog($"⚠️ {SelectedServer.TransportMode.ToUpper()} 模式需要管理员权限");
-        }
-        
-        // 启动内核 (ProcessController 内部会处理预检查)
         var success = await _processController.StartAsync(SelectedServer);
         
         if (success)
         {
-            // 更新端口信息
-            PortInfo = $"主端口: {_processController.CurrentMainPort}, 监控: {_processController.CurrentMetricsPort}";
-            
-            // 启动监控数据轮询
+            PortInfo = $"端口: {_processController.CurrentMainPort}";
             _metricsParser.StartPolling(1000);
             
-            // 设置系统代理
             if (_configService.Settings.EnableSystemProxy)
             {
                 SystemProxyService.SetSocksProxy("127.0.0.1", SelectedServer.LocalSocksPort);
                 AddLog($"✓ 已设置系统代理: 127.0.0.1:{SelectedServer.LocalSocksPort}");
             }
             
-            // 更新服务器使用时间
             SelectedServer.LastUsedAt = DateTime.Now;
             _configService.Settings.SelectedProfileId = SelectedServer.Id;
             _configService.SaveSettings();
@@ -233,7 +195,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         
         _metricsParser.StopPolling();
         
-        // 清除系统代理
         if (_configService.Settings.EnableSystemProxy)
         {
             SystemProxyService.ClearProxy();
@@ -243,70 +204,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
         await _processController.StopAsync();
         
         PortInfo = "";
-    }
-    
-    /// <summary>
-    /// 检查端口占用
-    /// </summary>
-    private void CheckPorts()
-    {
-        if (SelectedServer == null)
-        {
-            MessageBox.Show("请先选择一个服务器配置", "提示", 
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        
-        int mainPort = SelectedServer.LocalSocksPort + 1000;
-        
-        var results = PortChecker.CheckPhantomPorts(
-            mainPort: mainPort,
-            checkFakeTcp: SelectedServer.TransportMode == "faketcp",
-            checkWebSocket: SelectedServer.TransportMode == "websocket"
-        );
-        
-        var report = PortChecker.GenerateConflictReport(results);
-        
-        var hasConflicts = results.Any(r => r.IsInUse);
-        
-        MessageBox.Show(
-            report,
-            hasConflicts ? "端口冲突检测结果" : "端口检测通过",
-            MessageBoxButton.OK,
-            hasConflicts ? MessageBoxImage.Warning : MessageBoxImage.Information);
-    }
-    
-    /// <summary>
-    /// 以管理员身份重启
-    /// </summary>
-    private void RestartAsAdmin()
-    {
-        if (IsAdmin)
-        {
-            MessageBox.Show("程序已经以管理员身份运行", "提示",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-        
-        var result = MessageBox.Show(
-            "是否以管理员身份重新启动程序？\n\n" +
-            "这将关闭当前窗口并重新打开。",
-            "确认重启",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-            
-        if (result == MessageBoxResult.Yes)
-        {
-            if (AdminPrivilege.RestartAsAdmin())
-            {
-                Application.Current.Shutdown();
-            }
-            else
-            {
-                MessageBox.Show("无法以管理员身份启动", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
     }
     
     private void AddServer()
@@ -327,8 +224,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     
     private void EditServer()
     {
-        // 打开编辑对话框
-        // 这里需要配合 MaterialDesign DialogHost 使用
+        if (SelectedServer == null)
+        {
+            AddLog("请先选择一个服务器");
+            return;
+        }
+        // TODO: 打开编辑对话框
+        AddLog($"编辑服务器: {SelectedServer.Name}");
     }
     
     private void DeleteServer()
@@ -353,58 +255,81 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
     
-    private void GeneratePSK(Action<string>? callback)
-    {
-        var psk = ConfigurationService.GeneratePSK();
-        callback?.Invoke(psk);
-        AddLog("✓ 已生成新的 PSK 密钥");
-    }
-    
     private async Task CheckTimeSyncAsync()
     {
-        var result = await TimeSyncService.CheckTimeSyncAsync();
-        
-        TimeSyncWarning = !result.IsSynced;
-        TimeSyncMessage = result.Message;
-        
-        if (!result.IsSynced)
+        try
         {
-            AddLog($"⚠️ 时间同步警告: {result.Message}");
-            AddLog("提示: TSKD 认证要求客户端时间与服务器时间差在 30 秒以内");
+            var result = await TimeSyncService.CheckTimeSyncAsync();
+            
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                TimeSyncWarning = !result.IsSynced;
+                TimeSyncMessage = result.Message;
+                
+                if (!result.IsSynced)
+                {
+                    AddLog($"⚠️ 时间同步警告: {result.Message}");
+                }
+                else if (result.Success)
+                {
+                    AddLog($"✓ 时间同步正常 (偏差: {result.OffsetSeconds:F1}秒)");
+                }
+            });
         }
-        else if (result.Success)
+        catch (Exception ex)
         {
-            AddLog($"✓ 时间同步正常 (偏差: {result.OffsetSeconds:F1}秒)");
+            AddLog($"时间同步检查失败: {ex.Message}");
         }
     }
     
     private void OnStateChanged(ConnectionState state)
     {
-        ConnectionState = state;
-        
-        (StatusText, StatusColor) = state switch
+        Application.Current?.Dispatcher.Invoke(() =>
         {
-            ConnectionState.Disconnected => ("未连接", "#808080"),
-            ConnectionState.Connecting => ("连接中...", "#FFA500"),
-            ConnectionState.Connected => ("已连接", "#4CAF50"),
-            ConnectionState.Disconnecting => ("断开中...", "#FFA500"),
-            ConnectionState.Error => ("连接错误", "#F44336"),
-            _ => ("未知", "#808080")
-        };
-        
-        // 更新命令状态
-        ((AsyncRelayCommand)ConnectCommand).NotifyCanExecuteChanged();
-        ((AsyncRelayCommand)DisconnectCommand).NotifyCanExecuteChanged();
+            ConnectionState = state;
+            
+            // 更新状态文本和颜色
+            switch (state)
+            {
+                case ConnectionState.Disconnected:
+                    StatusText = "未连接";
+                    StatusBrush = new SolidColorBrush(Color.FromRgb(128, 128, 128)); // 灰色
+                    break;
+                case ConnectionState.Connecting:
+                    StatusText = "连接中...";
+                    StatusBrush = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // 橙色
+                    break;
+                case ConnectionState.Connected:
+                    StatusText = "已连接";
+                    StatusBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80)); // 绿色
+                    break;
+                case ConnectionState.Disconnecting:
+                    StatusText = "断开中...";
+                    StatusBrush = new SolidColorBrush(Color.FromRgb(255, 165, 0)); // 橙色
+                    break;
+                case ConnectionState.Error:
+                    StatusText = "连接错误";
+                    StatusBrush = new SolidColorBrush(Color.FromRgb(244, 67, 54)); // 红色
+                    break;
+            }
+            
+            // 通知按钮可见性变化
+            OnPropertyChanged(nameof(CanConnect));
+            OnPropertyChanged(nameof(CanDisconnect));
+        });
     }
     
     private void OnMetricsUpdated(MetricsData metrics)
     {
-        Metrics = metrics;
-        UploadSpeed = metrics.UploadSpeedFormatted;
-        DownloadSpeed = metrics.DownloadSpeedFormatted;
-        Rtt = metrics.RTTFormatted;
-        CurrentMode = metrics.CurrentMode;
-        ActiveConnections = metrics.ActiveConnections;
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            Metrics = metrics;
+            UploadSpeed = metrics.UploadSpeedFormatted;
+            DownloadSpeed = metrics.DownloadSpeedFormatted;
+            Rtt = metrics.RTTFormatted;
+            CurrentMode = metrics.CurrentMode;
+            ActiveConnections = metrics.ActiveConnections;
+        });
     }
     
     private void OnLogReceived(string log)
@@ -440,10 +365,3 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _metricsParser.Dispose();
     }
 }
-
-
-
-
-
-
-
