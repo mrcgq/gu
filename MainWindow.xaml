@@ -1,6 +1,6 @@
 <!-- =============================================================================
      文件: MainWindow.xaml
-     描述: 主窗口界面 - Material Design 风格 (修复颜色绑定问题)
+     描述: 主窗口界面 (修复版)
 ============================================================================= -->
 <Window x:Class="PhantomGUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -9,7 +9,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:vm="clr-namespace:PhantomGUI.ViewModels"
-        xmlns:controls="clr-namespace:PhantomGUI.Controls"
         mc:Ignorable="d"
         Title="Phantom VPN - Ultimate Edition"
         Height="700" Width="1100"
@@ -54,7 +53,7 @@
                                    Opacity="0.7" Margin="10,8,0,0"/>
                     </StackPanel>
 
-                    <!-- 状态指示器 - 修复：使用 Brush 绑定而不是 Color -->
+                    <!-- 状态指示器 -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" 
                                 VerticalAlignment="Center">
                         <Ellipse Width="12" Height="12" Margin="0,0,8,0"
@@ -96,14 +95,12 @@
                                         <TextBlock Text="{Binding Name}" 
                                                    FontWeight="Medium" FontSize="14"/>
                                         <TextBlock Opacity="0.7" FontSize="12">
-                                            <Run Text="{Binding ServerAddress}"/>
+                                            <Run Text="{Binding ServerAddress, Mode=OneWay}"/>
                                             <Run Text=":"/>
-                                            <Run Text="{Binding ServerPort}"/>
+                                            <Run Text="{Binding ServerPort, Mode=OneWay}"/>
                                         </TextBlock>
-                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                            <materialDesign:Chip Content="{Binding TransportMode}" 
-                                                                  FontSize="10" Padding="4,2"/>
-                                        </StackPanel>
+                                        <TextBlock Text="{Binding TransportMode}" 
+                                                   Opacity="0.5" FontSize="11" Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -149,19 +146,19 @@
 
                             <!-- 连接信息 -->
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='请选择服务器'}"
+                                <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='请选择服务器', TargetNullValue='请选择服务器'}"
                                            Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
                                 <TextBlock Opacity="0.7" Margin="0,8,0,0">
                                     <Run Text="地址: "/>
-                                    <Run Text="{Binding SelectedServer.ServerAddress, FallbackValue='-'}"/>
+                                    <Run Text="{Binding SelectedServer.ServerAddress, FallbackValue='-', TargetNullValue='-', Mode=OneWay}"/>
                                     <Run Text=":"/>
-                                    <Run Text="{Binding SelectedServer.ServerPort, FallbackValue='-'}"/>
+                                    <Run Text="{Binding SelectedServer.ServerPort, FallbackValue='-', TargetNullValue='-', Mode=OneWay}"/>
                                 </TextBlock>
                                 <TextBlock Opacity="0.7">
                                     <Run Text="模式: "/>
-                                    <Run Text="{Binding SelectedServer.TransportMode, FallbackValue='-'}"/>
+                                    <Run Text="{Binding SelectedServer.TransportMode, FallbackValue='-', TargetNullValue='-', Mode=OneWay}"/>
                                     <Run Text=" | 本地端口: "/>
-                                    <Run Text="{Binding SelectedServer.LocalSocksPort, FallbackValue='-'}"/>
+                                    <Run Text="{Binding SelectedServer.LocalSocksPort, FallbackValue='-', TargetNullValue='-', Mode=OneWay}"/>
                                 </TextBlock>
                             </StackPanel>
 
@@ -290,39 +287,10 @@
                                      FontSize="12"
                                      Background="Transparent"
                                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     VirtualizingPanel.IsVirtualizing="True"
-                                     VirtualizingPanel.VirtualizationMode="Recycling">
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding}" TextWrapping="NoWrap">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Path=., 
-                                                            Converter={StaticResource LogLevelConverter}}" 
-                                                            Value="ERROR">
-                                                            <Setter Property="Foreground" Value="#F44336"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Path=., 
-                                                            Converter={StaticResource LogLevelConverter}}" 
-                                                            Value="WARN">
-                                                            <Setter Property="Foreground" Value="#FF9800"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Path=., 
-                                                            Converter={StaticResource LogLevelConverter}}" 
-                                                            Value="DEBUG">
-                                                            <Setter Property="Foreground" Value="#9E9E9E"/>
-                                                        </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Path=., 
-                                                            Converter={StaticResource LogLevelConverter}}" 
-                                                            Value="SUCCESS">
-                                                            <Setter Property="Foreground" Value="#4CAF50"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                        <TextBlock Text="{Binding}" TextWrapping="NoWrap"/>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -336,30 +304,15 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- 权限指示器 -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
-                        <materialDesign:PackIcon Width="18" Height="18"
-                                                  VerticalAlignment="Center">
-                            <materialDesign:PackIcon.Style>
-                                <Style TargetType="materialDesign:PackIcon">
-                                    <Setter Property="Kind" Value="ShieldOff"/>
-                                    <Setter Property="Foreground" Value="#FF9800"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsAdmin}" Value="True">
-                                            <Setter Property="Kind" Value="ShieldCheck"/>
-                                            <Setter Property="Foreground" Value="#4CAF50"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </materialDesign:PackIcon.Style>
-                        </materialDesign:PackIcon>
+                        <materialDesign:PackIcon Kind="Shield" Width="18" Height="18"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="#4CAF50"/>
                         <TextBlock Text="{Binding PrivilegeLevel}" 
                                    Margin="4,0,0,0" 
                                    VerticalAlignment="Center"
@@ -367,64 +320,18 @@
                                    Opacity="0.8"/>
                     </StackPanel>
 
-                    <!-- 分隔线 -->
-                    <Rectangle Grid.Column="1" Width="1" Fill="#40FFFFFF" Margin="0,4"/>
-
-                    <!-- 时间同步警告 + 端口信息 -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0">
-                        <!-- 时间同步警告 -->
-                        <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding TimeSyncWarning, 
-                                        Converter={StaticResource BoolToVisibility}}"
-                                    Margin="0,0,16,0">
-                            <materialDesign:PackIcon Kind="AlertCircle" 
-                                                      Foreground="#FFC107" 
-                                                      VerticalAlignment="Center"
-                                                      Width="16" Height="16"/>
-                            <TextBlock Text="{Binding TimeSyncMessage}" 
-                                       Margin="4,0,0,0" 
-                                       Foreground="#FFC107"
-                                       VerticalAlignment="Center"
-                                       FontSize="11"
-                                       MaxWidth="300"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                        
-                        <!-- 端口信息 -->
-                        <TextBlock Text="{Binding PortInfo}"
-                                   Opacity="0.7" 
-                                   VerticalAlignment="Center"
-                                   FontSize="11"/>
-                    </StackPanel>
-
-                    <!-- 分隔线 -->
-                    <Rectangle Grid.Column="3" Width="1" Fill="#40FFFFFF" Margin="0,4"/>
+                    <!-- 端口信息 -->
+                    <TextBlock Grid.Column="1" 
+                               Text="{Binding PortInfo}"
+                               Opacity="0.7" 
+                               VerticalAlignment="Center"
+                               FontSize="11"/>
 
                     <!-- 版本信息 -->
-                    <TextBlock Grid.Column="4" Text="v4.1.0" 
+                    <TextBlock Grid.Column="2" Text="v4.1.0" 
                                Opacity="0.7" VerticalAlignment="Center"
                                Margin="16,0"
                                FontSize="11"/>
-
-                    <!-- 工具按钮 -->
-                    <StackPanel Grid.Column="5" Orientation="Horizontal">
-                        <!-- 刷新时间同步 -->
-                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                Command="{Binding CheckTimeSyncCommand}"
-                                ToolTip="检查时间同步"
-                                Foreground="White"
-                                Width="32" Height="32">
-                            <materialDesign:PackIcon Kind="ClockSync" Width="18" Height="18"/>
-                        </Button>
-                        
-                        <!-- 设置 -->
-                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
-                                ToolTip="设置"
-                                Foreground="White"
-                                Width="32" Height="32">
-                            <materialDesign:PackIcon Kind="Cog" Width="18" Height="18"/>
-                        </Button>
-                    </StackPanel>
                 </Grid>
             </materialDesign:ColorZone>
         </Grid>
