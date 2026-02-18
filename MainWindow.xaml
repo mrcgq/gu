@@ -1,6 +1,6 @@
 <!-- =============================================================================
      文件: MainWindow.xaml
-     描述: 主窗口界面 - Material Design 风格 (移除 LiveCharts 依赖)
+     描述: 主窗口界面 - Material Design 风格 (修复颜色绑定问题)
 ============================================================================= -->
 <Window x:Class="PhantomGUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -54,14 +54,11 @@
                                    Opacity="0.7" Margin="10,8,0,0"/>
                     </StackPanel>
 
-                    <!-- 状态指示器 -->
+                    <!-- 状态指示器 - 修复：使用 Brush 绑定而不是 Color -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" 
                                 VerticalAlignment="Center">
-                        <Ellipse Width="12" Height="12" Margin="0,0,8,0">
-                            <Ellipse.Fill>
-                                <SolidColorBrush Color="{Binding StatusColor}"/>
-                            </Ellipse.Fill>
-                        </Ellipse>
+                        <Ellipse Width="12" Height="12" Margin="0,0,8,0"
+                                 Fill="{Binding StatusBrush}"/>
                         <TextBlock Text="{Binding StatusText}" FontWeight="Medium"/>
                     </StackPanel>
                 </Grid>
@@ -173,8 +170,7 @@
                                 <Button Width="120" Height="48"
                                         Style="{StaticResource MaterialDesignRaisedAccentButton}"
                                         Command="{Binding ConnectCommand}"
-                                        Visibility="{Binding ConnectionState, 
-                                            Converter={StaticResource ConnectionStateToConnectVisibility}}">
+                                        Visibility="{Binding CanConnect, Converter={StaticResource BoolToVisibility}}">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Power" VerticalAlignment="Center"/>
                                         <TextBlock Text="连接" Margin="8,0,0,0" VerticalAlignment="Center"/>
@@ -184,8 +180,7 @@
                                         Style="{StaticResource MaterialDesignRaisedButton}"
                                         Background="#F44336"
                                         Command="{Binding DisconnectCommand}"
-                                        Visibility="{Binding ConnectionState, 
-                                            Converter={StaticResource ConnectionStateToDisconnectVisibility}}">
+                                        Visibility="{Binding CanDisconnect, Converter={StaticResource BoolToVisibility}}">
                                     <StackPanel Orientation="Horizontal">
                                         <materialDesign:PackIcon Kind="Stop" VerticalAlignment="Center"/>
                                         <TextBlock Text="断开" Margin="8,0,0,0" VerticalAlignment="Center"/>
