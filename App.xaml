@@ -1,0 +1,131 @@
+<!-- =============================================================================
+     文件: App.xaml
+     描述: 应用程序定义 (完整版，含所有转换器注册)
+============================================================================= -->
+<Application x:Class="PhantomGUI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:converters="clr-namespace:PhantomGUI.Converters"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Material Design 主题 -->
+                <materialDesign:BundledTheme BaseTheme="Dark" 
+                                              PrimaryColor="Blue" 
+                                              SecondaryColor="Teal"/>
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Defaults.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- ====== 基础转换器 ====== -->
+            
+            <!-- 布尔值转可见性 -->
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+            
+            <!-- 反向布尔值转可见性 -->
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+            
+            <!-- 字符串转可见性 (非空=Visible) -->
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            
+            <!-- 空值转可见性 -->
+            <converters:NullToVisibilityConverter x:Key="NullToVisibility"/>
+            
+            <!-- ====== 连接状态转换器 ====== -->
+            
+            <!-- 连接状态转连接按钮可见性 -->
+            <converters:ConnectionStateToConnectVisibilityConverter x:Key="ConnectionStateToConnectVisibility"/>
+            
+            <!-- 连接状态转断开按钮可见性 -->
+            <converters:ConnectionStateToDisconnectVisibilityConverter x:Key="ConnectionStateToDisconnectVisibility"/>
+            
+            <!-- 连接状态转颜色 -->
+            <converters:ConnectionStateToColorConverter x:Key="ConnectionStateToColor"/>
+            
+            <!-- ====== 日志和状态转换器 ====== -->
+            
+            <!-- 日志级别提取器 -->
+            <converters:LogLevelConverter x:Key="LogLevelConverter"/>
+            
+            <!-- 状态转颜色 -->
+            <converters:StateColorConverter x:Key="StateColor"/>
+            
+            <!-- ====== 布尔值转换器 ====== -->
+            
+            <!-- 布尔值转图标 -->
+            <converters:BoolToIconConverter x:Key="BoolToIconConverter"/>
+            
+            <!-- 布尔值转颜色 -->
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+            
+            <!-- 布尔值转 Brush -->
+            <converters:BoolToBrushConverter x:Key="BoolToBrush"/>
+            
+            <!-- ====== 格式化转换器 ====== -->
+            
+            <!-- 字节数格式化 -->
+            <converters:BytesFormatConverter x:Key="BytesFormat"/>
+            
+            <!-- 速度格式化 -->
+            <converters:SpeedFormatConverter x:Key="SpeedFormat"/>
+            
+            <!-- 时间跨度格式化 -->
+            <converters:TimeSpanFormatConverter x:Key="TimeSpanFormat"/>
+            
+            <!-- 百分比格式化 -->
+            <converters:PercentageConverter x:Key="PercentageConverter"/>
+            
+            <!-- ====== 图标转换器 ====== -->
+            
+            <!-- 传输模式转图标 -->
+            <converters:TransportModeToIconConverter x:Key="TransportModeToIcon"/>
+            
+            <!-- ====== 多值转换器 ====== -->
+            
+            <!-- 多布尔值转可见性 -->
+            <converters:MultiBoolToVisibilityConverter x:Key="MultiBoolToVisibility"/>
+            
+            <!-- ====== 自定义样式 ====== -->
+            
+            <!-- 状态指示器圆点样式 -->
+            <Style x:Key="StatusIndicatorStyle" TargetType="Ellipse">
+                <Setter Property="Width" Value="12"/>
+                <Setter Property="Height" Value="12"/>
+                <Setter Property="Margin" Value="0,0,8,0"/>
+            </Style>
+            
+            <!-- 日志文本样式 -->
+            <Style x:Key="LogTextStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="Consolas"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="TextWrapping" Value="NoWrap"/>
+            </Style>
+            
+            <!-- 底部状态栏文本样式 -->
+            <Style x:Key="StatusBarTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Opacity" Value="0.8"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+            
+            <!-- 统计数字样式 -->
+            <Style x:Key="StatValueStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="18"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="0,8,0,0"/>
+            </Style>
+            
+            <!-- 统计标签样式 -->
+            <Style x:Key="StatLabelStyle" TargetType="TextBlock">
+                <Setter Property="Opacity" Value="0.7"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+            </Style>
+            
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
+
+
+
