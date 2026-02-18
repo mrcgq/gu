@@ -1,0 +1,488 @@
+<!-- =============================================================================
+     文件: MainWindow.xaml
+     描述: 主窗口界面 - Material Design 风格 (完整版，含端口检测和权限显示)
+============================================================================= -->
+<Window x:Class="PhantomGUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
+        xmlns:vm="clr-namespace:PhantomGUI.ViewModels"
+        mc:Ignorable="d"
+        Title="Phantom VPN - Ultimate Edition"
+        Height="700" Width="1100"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        TextOptions.TextFormattingMode="Ideal"
+        TextOptions.TextRenderingMode="Auto"
+        FontFamily="{DynamicResource MaterialDesignFont}">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <materialDesign:DialogHost Identifier="RootDialog">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ====== 顶部状态栏 ====== -->
+            <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryMid" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Logo 和标题 -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="VpnKey" Width="32" Height="32" 
+                                                  VerticalAlignment="Center"/>
+                        <TextBlock Text="Phantom VPN" FontSize="24" FontWeight="Bold"
+                                   Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Ultimate Edition" FontSize="12" 
+                                   Opacity="0.7" Margin="10,8,0,0"/>
+                    </StackPanel>
+
+                    <!-- 状态指示器 -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" 
+                                VerticalAlignment="Center">
+                        <Ellipse Width="12" Height="12" Margin="0,0,8,0">
+                            <Ellipse.Fill>
+                                <SolidColorBrush Color="{Binding StatusColor}"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusText}" FontWeight="Medium"/>
+                    </StackPanel>
+                </Grid>
+            </materialDesign:ColorZone>
+
+            <!-- ====== 主内容区 ====== -->
+            <Grid Grid.Row="1" Margin="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="300"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 左侧：服务器列表 -->
+                <materialDesign:Card Grid.Column="0" Margin="0,0,8,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 标题 -->
+                        <TextBlock Grid.Row="0" Text="服务器列表" 
+                                   Style="{StaticResource MaterialDesignHeadline6TextBlock}"
+                                   Margin="16"/>
+
+                        <!-- 服务器列表 -->
+                        <ListBox Grid.Row="1" 
+                                 ItemsSource="{Binding Servers}"
+                                 SelectedItem="{Binding SelectedServer}"
+                                 Margin="8">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="8">
+                                        <TextBlock Text="{Binding Name}" 
+                                                   FontWeight="Medium" FontSize="14"/>
+                                        <TextBlock Opacity="0.7" FontSize="12">
+                                            <Run Text="{Binding ServerAddress}"/>
+                                            <Run Text=":"/>
+                                            <Run Text="{Binding ServerPort}"/>
+                                        </TextBlock>
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <materialDesign:Chip Content="{Binding TransportMode}" 
+                                                                  FontSize="10" Padding="4,2"/>
+                                            <materialDesign:Chip Content="{Binding TLSFingerprint}" 
+                                                                  FontSize="10" Padding="4,2"
+                                                                  Margin="4,0,0,0"
+                                                                  Visibility="{Binding TLSEnabled, 
+                                                                      Converter={StaticResource BoolToVisibility}}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- 按钮栏 -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" 
+                                    HorizontalAlignment="Center" Margin="8">
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Command="{Binding AddServerCommand}"
+                                    ToolTip="添加服务器">
+                                <materialDesign:PackIcon Kind="Plus"/>
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Command="{Binding EditServerCommand}"
+                                    ToolTip="编辑服务器">
+                                <materialDesign:PackIcon Kind="Pencil"/>
+                            </Button>
+                            <Button Style="{StaticResource MaterialDesignIconButton}"
+                                    Command="{Binding DeleteServerCommand}"
+                                    ToolTip="删除服务器">
+                                <materialDesign:PackIcon Kind="Delete"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </materialDesign:Card>
+
+                <!-- 右侧：主控制区 -->
+                <Grid Grid.Column="1" Margin="8,0,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 连接控制卡片 -->
+                    <materialDesign:Card Grid.Row="0" Padding="24">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 连接信息 -->
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="{Binding SelectedServer.Name, FallbackValue='请选择服务器'}"
+                                           Style="{StaticResource MaterialDesignHeadline5TextBlock}"/>
+                                <TextBlock Opacity="0.7" Margin="0,8,0,0">
+                                    <Run Text="地址: "/>
+                                    <Run Text="{Binding SelectedServer.ServerAddress, FallbackValue='-'}"/>
+                                    <Run Text=":"/>
+                                    <Run Text="{Binding SelectedServer.ServerPort, FallbackValue='-'}"/>
+                                </TextBlock>
+                                <TextBlock Opacity="0.7">
+                                    <Run Text="模式: "/>
+                                    <Run Text="{Binding SelectedServer.TransportMode, FallbackValue='-'}"/>
+                                    <Run Text=" | 本地端口: "/>
+                                    <Run Text="{Binding SelectedServer.LocalSocksPort, FallbackValue='-'}"/>
+                                </TextBlock>
+                                
+                                <!-- 权限提示 -->
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                            Visibility="{Binding RequiresAdminForSelectedMode, 
+                                                Converter={StaticResource BoolToVisibility}}">
+                                    <materialDesign:PackIcon Kind="ShieldAlert" 
+                                                              Foreground="#FF9800"
+                                                              VerticalAlignment="Center"/>
+                                    <TextBlock Text="此模式需要管理员权限" 
+                                               Foreground="#FF9800"
+                                               FontSize="12"
+                                               Margin="4,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- 连接按钮 -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <Button Width="120" Height="48"
+                                        Style="{StaticResource MaterialDesignRaisedAccentButton}"
+                                        Command="{Binding ConnectCommand}"
+                                        Visibility="{Binding ConnectionState, 
+                                            Converter={StaticResource ConnectionStateToConnectVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Power" VerticalAlignment="Center"/>
+                                        <TextBlock Text="连接" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Width="120" Height="48"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Background="#F44336"
+                                        Command="{Binding DisconnectCommand}"
+                                        Visibility="{Binding ConnectionState, 
+                                            Converter={StaticResource ConnectionStateToDisconnectVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Stop" VerticalAlignment="Center"/>
+                                        <TextBlock Text="断开" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </materialDesign:Card>
+
+                    <!-- 实时监控卡片 -->
+                    <materialDesign:Card Grid.Row="1" Margin="0,16,0,0" Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 上传速度 -->
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="Upload" Width="32" Height="32"
+                                                          HorizontalAlignment="Center" 
+                                                          Foreground="#4CAF50"/>
+                                <TextBlock Text="{Binding UploadSpeed}" 
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBlock Text="上传" Opacity="0.7" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- 下载速度 -->
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="Download" Width="32" Height="32"
+                                                          HorizontalAlignment="Center"
+                                                          Foreground="#2196F3"/>
+                                <TextBlock Text="{Binding DownloadSpeed}" 
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBlock Text="下载" Opacity="0.7" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- 延迟 -->
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="TimerOutline" Width="32" Height="32"
+                                                          HorizontalAlignment="Center"
+                                                          Foreground="#FF9800"/>
+                                <TextBlock Text="{Binding Rtt}" 
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBlock Text="延迟" Opacity="0.7" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- 当前模式 -->
+                            <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="SwapHorizontal" Width="32" Height="32"
+                                                          HorizontalAlignment="Center"
+                                                          Foreground="#9C27B0"/>
+                                <TextBlock Text="{Binding CurrentMode}" 
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBlock Text="模式" Opacity="0.7" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- 连接数 -->
+                            <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                                <materialDesign:PackIcon Kind="AccountMultiple" Width="32" Height="32"
+                                                          HorizontalAlignment="Center"
+                                                          Foreground="#00BCD4"/>
+                                <TextBlock Text="{Binding ActiveConnections}" 
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                <TextBlock Text="连接" Opacity="0.7" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </materialDesign:Card>
+
+                    <!-- 日志卡片 -->
+                    <materialDesign:Card Grid.Row="2" Margin="0,16,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- 标题栏 -->
+                            <Grid Grid.Row="0" Margin="16,12">
+                                <TextBlock Text="运行日志" 
+                                           Style="{StaticResource MaterialDesignSubtitle1TextBlock}"/>
+                                <Button Style="{StaticResource MaterialDesignIconButton}"
+                                        HorizontalAlignment="Right"
+                                        Command="{Binding ClearLogsCommand}"
+                                        ToolTip="清空日志">
+                                    <materialDesign:PackIcon Kind="DeleteSweep"/>
+                                </Button>
+                            </Grid>
+
+                            <!-- 日志列表 -->
+                            <ListBox Grid.Row="1" 
+                                     ItemsSource="{Binding Logs}"
+                                     FontFamily="Consolas"
+                                     FontSize="12"
+                                     Background="Transparent"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     VirtualizingPanel.IsVirtualizing="True"
+                                     VirtualizingPanel.VirtualizationMode="Recycling">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextWrapping="NoWrap">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Path=., 
+                                                            Converter={StaticResource LogLevelConverter}}" 
+                                                            Value="ERROR">
+                                                            <Setter Property="Foreground" Value="#F44336"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Path=., 
+                                                            Converter={StaticResource LogLevelConverter}}" 
+                                                            Value="WARN">
+                                                            <Setter Property="Foreground" Value="#FF9800"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Path=., 
+                                                            Converter={StaticResource LogLevelConverter}}" 
+                                                            Value="DEBUG">
+                                                            <Setter Property="Foreground" Value="#9E9E9E"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Path=., 
+                                                            Converter={StaticResource LogLevelConverter}}" 
+                                                            Value="SUCCESS">
+                                                            <Setter Property="Foreground" Value="#4CAF50"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </materialDesign:Card>
+                </Grid>
+            </Grid>
+
+            <!-- ====== 底部状态栏 (完整版，含端口检测和权限显示) ====== -->
+            <materialDesign:ColorZone Grid.Row="2" Mode="PrimaryDark" Padding="8,4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 权限指示器 -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
+                        <materialDesign:PackIcon Width="18" Height="18"
+                                                  VerticalAlignment="Center">
+                            <materialDesign:PackIcon.Style>
+                                <Style TargetType="materialDesign:PackIcon">
+                                    <Setter Property="Kind" Value="ShieldOff"/>
+                                    <Setter Property="Foreground" Value="#FF9800"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAdmin}" Value="True">
+                                            <Setter Property="Kind" Value="ShieldCheck"/>
+                                            <Setter Property="Foreground" Value="#4CAF50"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </materialDesign:PackIcon.Style>
+                        </materialDesign:PackIcon>
+                        <TextBlock Text="{Binding PrivilegeLevel}" 
+                                   Margin="4,0,0,0" 
+                                   VerticalAlignment="Center"
+                                   FontSize="11"
+                                   Opacity="0.8"/>
+                        
+                        <!-- 提权按钮 (非管理员时显示) -->
+                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
+                                Visibility="{Binding IsAdmin, 
+                                    Converter={StaticResource InverseBoolToVisibility}}"
+                                Command="{Binding RestartAsAdminCommand}"
+                                ToolTip="以管理员身份重启"
+                                Foreground="#FFC107"
+                                Margin="4,0,0,0"
+                                Width="24" Height="24">
+                            <materialDesign:PackIcon Kind="ArrowUpBold" Width="14" Height="14"/>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 分隔线 -->
+                    <Rectangle Grid.Column="1" Width="1" Fill="#40FFFFFF" Margin="0,4"/>
+
+                    <!-- 时间同步警告 + 端口信息 -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0">
+                        <!-- 时间同步警告 -->
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding TimeSyncWarning, 
+                                        Converter={StaticResource BoolToVisibility}}"
+                                    Margin="0,0,16,0">
+                            <materialDesign:PackIcon Kind="AlertCircle" 
+                                                      Foreground="#FFC107" 
+                                                      VerticalAlignment="Center"
+                                                      Width="16" Height="16"/>
+                            <TextBlock Text="{Binding TimeSyncMessage}" 
+                                       Margin="4,0,0,0" 
+                                       Foreground="#FFC107"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       MaxWidth="300"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        
+                        <!-- 端口信息 -->
+                        <TextBlock Text="{Binding PortInfo}"
+                                   Opacity="0.7" 
+                                   VerticalAlignment="Center"
+                                   FontSize="11"
+                                   Visibility="{Binding PortInfo, 
+                                       Converter={StaticResource StringToVisibilityConverter}}"/>
+                    </StackPanel>
+
+                    <!-- 分隔线 -->
+                    <Rectangle Grid.Column="3" Width="1" Fill="#40FFFFFF" Margin="0,4"/>
+
+                    <!-- 版本信息 -->
+                    <TextBlock Grid.Column="4" Text="v4.1.0" 
+                               Opacity="0.7" VerticalAlignment="Center"
+                               Margin="16,0"
+                               FontSize="11"/>
+
+                    <!-- 工具按钮 -->
+                    <StackPanel Grid.Column="5" Orientation="Horizontal">
+                        <!-- 检测端口 -->
+                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
+                                Command="{Binding CheckPortsCommand}"
+                                ToolTip="检测端口占用"
+                                Foreground="White"
+                                Width="32" Height="32">
+                            <materialDesign:PackIcon Kind="LanCheck" Width="18" Height="18"/>
+                        </Button>
+                        
+                        <!-- 刷新时间同步 -->
+                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
+                                Command="{Binding CheckTimeSyncCommand}"
+                                ToolTip="检查时间同步"
+                                Foreground="White"
+                                Width="32" Height="32">
+                            <materialDesign:PackIcon Kind="ClockSync" Width="18" Height="18"/>
+                        </Button>
+                        
+                        <!-- 设置 -->
+                        <Button Style="{StaticResource MaterialDesignIconForegroundButton}"
+                                ToolTip="设置"
+                                Foreground="White"
+                                Width="32" Height="32">
+                            <materialDesign:PackIcon Kind="Cog" Width="18" Height="18"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </materialDesign:ColorZone>
+        </Grid>
+    </materialDesign:DialogHost>
+</Window>
+									
+									
+									
+									
+									
+									
+									
+									
+									
