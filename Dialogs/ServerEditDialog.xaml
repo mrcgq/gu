@@ -18,8 +18,9 @@
                    Style="{StaticResource MaterialDesignSubtitle2TextBlock}"
                    Margin="0,0,0,8"/>
         
+        <!-- 修改: Name -> ServerName -->
         <TextBox materialDesign:HintAssist.Hint="服务器名称"
-                 Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                 Text="{Binding ServerName, UpdateSourceTrigger=PropertyChanged}"
                  Style="{StaticResource MaterialDesignOutlinedTextBox}"
                  Margin="0,0,0,16"/>
         
@@ -187,5 +188,3 @@
         </StackPanel>
     </StackPanel>
 </UserControl>
-
-
