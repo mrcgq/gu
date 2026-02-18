@@ -1,17 +1,61 @@
 <!-- =============================================================================
      文件: Controls/SpeedGauge.xaml
-     描述: 实时速度仪表盘控件 (使用 LiveCharts2)
+     描述: 简化版速度显示控件 (不使用图表库)
 ============================================================================= -->
 <UserControl x:Class="PhantomGUI.Controls.SpeedGauge"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     
     <Grid>
-        <lvc:CartesianChart Series="{Binding Series}"
-                            XAxes="{Binding XAxes}"
-                            YAxes="{Binding YAxes}"
-                            TooltipPosition="Hidden">
-        </lvc:CartesianChart>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- 速度条显示 -->
+        <Grid Grid.Row="0" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <!-- 上传速度条 -->
+            <Grid Grid.Row="0" Margin="0,0,0,5">
+                <ProgressBar x:Name="UploadBar" 
+                             Value="0" Maximum="100" 
+                             Foreground="#4CAF50"
+                             Background="#333333"
+                             Height="20"/>
+                <TextBlock x:Name="UploadText" 
+                           Text="上传: 0 B/s" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center"
+                           Foreground="White"
+                           FontSize="11"/>
+            </Grid>
+            
+            <!-- 下载速度条 -->
+            <Grid Grid.Row="1" Margin="0,5,0,0">
+                <ProgressBar x:Name="DownloadBar" 
+                             Value="0" Maximum="100"
+                             Foreground="#2196F3"
+                             Background="#333333"
+                             Height="20"/>
+                <TextBlock x:Name="DownloadText" 
+                           Text="下载: 0 B/s" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center"
+                           Foreground="White"
+                           FontSize="11"/>
+            </Grid>
+        </Grid>
+        
+        <!-- 图例 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5">
+            <Ellipse Width="10" Height="10" Fill="#4CAF50" Margin="0,0,5,0"/>
+            <TextBlock Text="上传" Foreground="Gray" FontSize="10" Margin="0,0,15,0"/>
+            <Ellipse Width="10" Height="10" Fill="#2196F3" Margin="0,0,5,0"/>
+            <TextBlock Text="下载" Foreground="Gray" FontSize="10"/>
+        </StackPanel>
     </Grid>
 </UserControl>
