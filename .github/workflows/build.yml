@@ -1,0 +1,149 @@
+# =============================================================================
+# 文件: .github/workflows/build.yml
+# 描述: PhantomGUI 持续集成构建工作流
+#       每次 Push 和 PR 时自动构建和测试
+# =============================================================================
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'feature/**'
+    paths:
+      - 'PhantomGUI/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'PhantomGUI/**'
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  SOLUTION_PATH: 'PhantomGUI/PhantomGUI.sln'
+  PROJECT_PATH: 'PhantomGUI/PhantomGUI/PhantomGUI.csproj'
+  CONFIGURATION: 'Release'
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win-x64
+            runtime: win-x64
+          - os: windows-latest
+            platform: win-x86
+            runtime: win-x86
+          - os: windows-latest
+            platform: win-arm64
+            runtime: win-arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }} --runtime ${{ matrix.runtime }}
+
+      - name: Build
+        run: |
+          dotnet build ${{ env.PROJECT_PATH }} `
+            --configuration ${{ env.CONFIGURATION }} `
+            --runtime ${{ matrix.runtime }} `
+            --no-restore `
+            -p:Platform="Any CPU"
+
+      - name: Publish
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration ${{ env.CONFIGURATION }} `
+            --runtime ${{ matrix.runtime }} `
+            --self-contained true `
+            --output ./publish/${{ matrix.platform }} `
+            -p:PublishSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true
+
+      - name: List output files
+        run: |
+          Write-Host "Published files:"
+          Get-ChildItem -Path ./publish/${{ matrix.platform }} -Recurse | Format-Table Name, Length
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhantomGUI-${{ matrix.platform }}-build
+          path: ./publish/${{ matrix.platform }}/
+          retention-days: 7
+          if-no-files-found: error
+
+  # 代码质量检查
+  code-quality:
+    name: Code Quality Check
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Check code formatting
+        run: dotnet format ${{ env.PROJECT_PATH }} --verify-no-changes --verbosity diagnostic
+        continue-on-error: true
+
+      - name: Run analyzers
+        run: |
+          dotnet build ${{ env.PROJECT_PATH }} `
+            --configuration ${{ env.CONFIGURATION }} `
+            --no-restore `
+            -warnaserror
+
+  # 构建摘要
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [build, code-quality]
+    if: always()
+    
+    steps:
+      - name: Check build results
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| win-x64 | ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Quality | ${{ needs.code-quality.result == 'success' && '✅ Passed' || '⚠️ Issues' }} |" >> $GITHUB_STEP_SUMMARY
