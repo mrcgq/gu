@@ -1,0 +1,422 @@
+# =============================================================================
+# 文件: .github/workflows/release.yml
+# 描述: PhantomGUI 发布工作流
+#       创建 Tag 时自动构建并发布 Release
+# =============================================================================
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*.*.*-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 4.1.0)'
+        required: true
+        default: '4.1.0'
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
+      include_core:
+        description: 'Include phantom-core.exe (if available)?'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'PhantomGUI/PhantomGUI/PhantomGUI.csproj'
+  CONFIGURATION: 'Release'
+  APP_NAME: 'PhantomGUI'
+
+jobs:
+  # 准备发布信息
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_short: ${{ steps.version.outputs.version_short }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            if [[ "$VERSION" == *"-"* ]]; then
+              IS_PRERELEASE="true"
+            else
+              IS_PRERELEASE="false"
+            fi
+          fi
+          
+          VERSION_SHORT=$(echo $VERSION | cut -d'-' -f1)
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_short=$VERSION_SHORT" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          
+          echo "## Release Info" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- Short Version: $VERSION_SHORT" >> $GITHUB_STEP_SUMMARY
+          echo "- Pre-release: $IS_PRERELEASE" >> $GITHUB_STEP_SUMMARY
+
+  # 构建所有平台
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: windows-latest
+    needs: prepare
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: win-x64
+            runtime: win-x64
+            arch: x64
+          - platform: win-x86
+            runtime: win-x86
+            arch: x86
+          - platform: win-arm64
+            runtime: win-arm64
+            arch: arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }} --runtime ${{ matrix.runtime }}
+
+      - name: Update version in project
+        run: |
+          $projectFile = "${{ env.PROJECT_PATH }}"
+          $content = Get-Content $projectFile -Raw
+          $content = $content -replace '<Version>.*</Version>', '<Version>${{ needs.prepare.outputs.version_short }}</Version>'
+          Set-Content $projectFile $content
+          Write-Host "Updated version to ${{ needs.prepare.outputs.version_short }}"
+
+      - name: Build and Publish (Self-Contained)
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration ${{ env.CONFIGURATION }} `
+            --runtime ${{ matrix.runtime }} `
+            --self-contained true `
+            --output ./publish/self-contained `
+            -p:PublishSingleFile=true `
+            -p:PublishTrimmed=false `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+      - name: Build and Publish (Framework-Dependent)
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} `
+            --configuration ${{ env.CONFIGURATION }} `
+            --runtime ${{ matrix.runtime }} `
+            --self-contained false `
+            --output ./publish/framework-dependent `
+            -p:PublishSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false
+
+      - name: Create Resources directory
+        run: |
+          $scDir = "./publish/self-contained/Resources/Icons"
+          $fdDir = "./publish/framework-dependent/Resources/Icons"
+          
+          if (-not (Test-Path $scDir)) { New-Item -ItemType Directory -Path $scDir -Force }
+          if (-not (Test-Path $fdDir)) { New-Item -ItemType Directory -Path $fdDir -Force }
+          
+          # 复制图标文件（如果存在）
+          $iconSource = "PhantomGUI/PhantomGUI/Resources/Icons"
+          if (Test-Path $iconSource) {
+            Copy-Item "$iconSource/*" $scDir -Force -ErrorAction SilentlyContinue
+            Copy-Item "$iconSource/*" $fdDir -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Download phantom-core (if configured)
+        if: ${{ github.event.inputs.include_core == 'true' || github.event.inputs.include_core == '' }}
+        continue-on-error: true
+        run: |
+          # 这里可以从另一个 Release 下载 phantom-core
+          # 或者从构建产物中获取
+          Write-Host "Note: phantom-core.exe should be added manually or from another workflow"
+          
+          # 创建占位符说明文件
+          $readme = @"
+          # Phantom Core
+          
+          请将 phantom-core.exe (或 phantom-client.exe) 放置在此目录。
+          
+          下载地址: https://github.com/your-org/phantom/releases
+          
+          支持的文件名:
+          - phantom-core.exe
+          - phantom-client.exe
+          - phantom.exe
+          "@
+          
+          Set-Content "./publish/self-contained/README-CORE.txt" $readme
+          Set-Content "./publish/framework-dependent/README-CORE.txt" $readme
+
+      - name: Create ZIP archives
+        run: |
+          $version = "${{ needs.prepare.outputs.version }}"
+          $platform = "${{ matrix.platform }}"
+          
+          # Self-contained 版本 (包含 .NET 运行时，体积较大但无需安装 .NET)
+          $scZip = "${{ env.APP_NAME }}-${version}-${platform}-self-contained.zip"
+          Compress-Archive -Path "./publish/self-contained/*" -DestinationPath $scZip -Force
+          
+          # Framework-dependent 版本 (需要 .NET 8 运行时，体积小)
+          $fdZip = "${{ env.APP_NAME }}-${version}-${platform}-portable.zip"
+          Compress-Archive -Path "./publish/framework-dependent/*" -DestinationPath $fdZip -Force
+          
+          Write-Host "Created archives:"
+          Get-ChildItem *.zip | Format-Table Name, Length
+
+      - name: Generate file checksums
+        run: |
+          $files = Get-ChildItem *.zip
+          foreach ($file in $files) {
+            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($file.Name)" | Out-File -Append checksums.txt
+            Write-Host "$($file.Name): $hash"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: |
+            *.zip
+            checksums.txt
+          retention-days: 1
+
+  # 创建安装程序 (可选)
+  create-installer:
+    name: Create Installer
+    runs-on: windows-latest
+    needs: [prepare, build]
+    if: ${{ !contains(needs.prepare.outputs.version, '-') }}  # 仅正式版本创建安装程序
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-win-x64
+          path: ./artifacts
+
+      - name: Extract for installer
+        run: |
+          Expand-Archive -Path "./artifacts/*self-contained*.zip" -DestinationPath "./installer-source" -Force
+
+      - name: Create Inno Setup script
+        run: |
+          $version = "${{ needs.prepare.outputs.version_short }}"
+          $script = @"
+          #define MyAppName "Phantom VPN"
+          #define MyAppVersion "$version"
+          #define MyAppPublisher "Phantom Team"
+          #define MyAppURL "https://github.com/your-org/phantom"
+          #define MyAppExeName "PhantomGUI.exe"
+          
+          [Setup]
+          AppId={{8F14E45F-CEEA-46ED-A74F-43F1D2C8D620}
+          AppName={#MyAppName}
+          AppVersion={#MyAppVersion}
+          AppPublisher={#MyAppPublisher}
+          AppPublisherURL={#MyAppURL}
+          DefaultDirName={autopf}\{#MyAppName}
+          DefaultGroupName={#MyAppName}
+          AllowNoIcons=yes
+          OutputDir=.
+          OutputBaseFilename=PhantomGUI-$version-x64-setup
+          Compression=lzma2/ultra64
+          SolidCompression=yes
+          WizardStyle=modern
+          PrivilegesRequired=admin
+          ArchitecturesInstallIn64BitMode=x64
+          
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+          Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+          
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+          Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
+          
+          [Files]
+          Source: "installer-source\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          
+          [Icons]
+          Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+          Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
+          Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+          
+          [Run]
+          Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+          "@
+          
+          Set-Content "setup.iss" $script
+
+      - name: Build installer with Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: setup.iss
+          options: /O.
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-win-x64
+          path: "*.exe"
+          retention-days: 1
+
+  # 发布 Release
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          
+          # 复制所有 zip 文件
+          find ./artifacts -name "*.zip" -exec cp {} release-files/ \;
+          
+          # 复制安装程序（如果存在）
+          find ./artifacts -name "*.exe" -exec cp {} release-files/ \; 2>/dev/null || true
+          
+          # 合并所有 checksums
+          echo "# SHA256 Checksums" > release-files/checksums-sha256.txt
+          echo "" >> release-files/checksums-sha256.txt
+          find ./artifacts -name "checksums.txt" -exec cat {} >> release-files/checksums-sha256.txt \;
+          
+          echo "Release files:"
+          ls -la release-files/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # 获取上一个 tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -n "$PREV_TAG" ]; then
+            echo "Changes since $PREV_TAG:"
+            CHANGES=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Initial release"
+            CHANGES="Initial release"
+          fi
+          
+          # 写入 changelog 文件
+          cat > CHANGELOG.md << EOF
+          ## What's Changed
+          
+          $CHANGES
+          
+          ## Downloads
+          
+          | File | Description |
+          |------|-------------|
+          | \`*-self-contained.zip\` | 独立版本，包含 .NET 运行时，无需安装任何依赖 |
+          | \`*-portable.zip\` | 便携版本，需要安装 [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+          | \`*-setup.exe\` | Windows 安装程序 (仅 x64) |
+          
+          ## System Requirements
+          
+          - **操作系统**: Windows 10 1903+ / Windows 11
+          - **运行时**: .NET 8.0 Desktop Runtime (portable 版本需要)
+          - **架构**: x64 / x86 / ARM64
+          
+          ## Checksums (SHA256)
+          
+          见 \`checksums-sha256.txt\`
+          
+          EOF
+          
+          cat CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Phantom VPN v${{ needs.prepare.outputs.version }}"
+          tag_name: "v${{ needs.prepare.outputs.version }}"
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          files: |
+            release-files/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest release badge
+        if: ${{ needs.prepare.outputs.is_prerelease != 'true' }}
+        run: |
+          echo "✅ Release v${{ needs.prepare.outputs.version }} published successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Download: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
+  # 清理旧的构建产物
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: release
+    if: always()
+    
+    steps:
+      - name: Delete artifacts
+        uses: geekyeggo/delete-artifact@v4
+        with:
+          name: |
+            release-*
+            installer-*
+          failOnError: false
