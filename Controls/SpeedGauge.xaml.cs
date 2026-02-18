@@ -2,7 +2,6 @@
 // 文件: Controls/SpeedGauge.xaml.cs
 // 描述: 速度仪表盘控件代码 (使用 LiveCharts2)
 // =============================================================================
-using System;
 using System.Collections.ObjectModel;
 using System.Windows.Controls;
 using LiveChartsCore;
@@ -64,7 +63,6 @@ public partial class SpeedGauge : UserControl
             new Axis
             {
                 ShowSeparatorLines = false,
-                Labels = null,
                 IsVisible = false
             }
         };
